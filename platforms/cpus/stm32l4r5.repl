@@ -195,7 +195,7 @@ dmamux1: Miscellaneous.STM32_DMAMUX @ sysbus 0x40020800
 
 rtc: Timers.STM32F4_RTC @ sysbus 0x40002800
     backupRegisterCount: 32
-    hasL4TamperRegister: true
+    hasTamperControlRegister: true
     AlarmIRQ -> exti@18
     WakeupIRQ -> exti@20
 
