@@ -1,0 +1,313 @@
+// STM32L4R5 (STM32L4+, Cortex-M4F).
+// Memory map, base addresses and IRQ numbers: ST's stm32l4r5xx.h (CMSIS device header).
+// Register behaviour: RM0432 Rev 9. Reset values not stated in RM0432: STM32L4R5 SVD.
+// Bus clock-dependent models are configured for the 80 MHz tree (MSI 4 MHz -> PLL N40 R2);
+// override `frequency` per machine for a different SYSCLK.
+
+flash: Memory.MappedMemory @ sysbus 0x08000000
+    size: 0x200000
+
+// SRAM1 192 KiB + SRAM2 64 KiB + SRAM3 384 KiB are contiguous at 0x20000000
+sram: Memory.MappedMemory @ sysbus 0x20000000
+    size: 0xA0000
+
+// System memory incl. the device ID area (stm32l4r5xx.h: PACKAGE_BASE, UID_BASE, FLASHSIZE_BASE).
+// Factory calibration words use the DS12023 Rev 5 typical values, sampled at VDDA = 3.0 V, 12 bit
+// (Table 8 for addresses and calibration temperatures):
+//   TS_CAL1     @30 C:  V30 = 0.76 V                       (Table 92) -> 0.76 / 3.0 * 4095 = 1037
+//   TS_CAL2     @130 C: V30 + 100 * Avg_Slope 2.5 mV/C     (Table 92) -> 1.01 / 3.0 * 4095 = 1379
+//   VREFINT_CAL @30 C:  VREFINT = 1.212 V                  (Table 24) -> 1.212 / 3.0 * 4095 = 1654
+systemMemory: Memory.MappedMemory @ sysbus 0x1FFF0000
+    size: 0x8000
+    init:
+        WriteWord 0x75A8 1037
+        WriteWord 0x75AA 1654
+        WriteWord 0x75CA 1379
+        WriteWord 0x75E0 0x0800
+
+nvic: IRQControllers.NVIC @ sysbus 0xE000E000
+    priorityMask: 0xF0
+    systickFrequency: 4000000
+    IRQ -> cpu@0
+
+cpu: CPU.CortexM @ sysbus
+    cpuType: "cortex-m4f"
+    nvic: nvic
+
+rcc: Miscellaneous.STM32L4_RCC @ sysbus 0x40021000
+    systick: nvic
+    rtc: rtc
+
+pwr: Miscellaneous.STM32L4_PWR @ sysbus 0x40007000
+
+flashController: MTD.STM32L4_FlashController @ sysbus 0x40022000
+    flash: flash
+
+// EXTI bank 1 (lines 0-31) has the same layout as STM32F4 EXTI. Line sources: RM0432 Rev 9
+// EXTI lines connections table (16 PVD, 18 RTC alarm, 20 RTC wakeup)
+exti: IRQControllers.STM32F4_EXTI @ sysbus 0x40010400
+    numberOfOutputLines: 32
+    [0-4] -> nvic@[6-10]
+    [5-9] -> nvicInput23@[0-4]
+    [10-15] -> nvicInput40@[0-5]
+    [16, 18, 20] -> nvic@[1, 41, 3]
+
+nvicInput23: Miscellaneous.CombinedInput @ none
+    numberOfInputs: 5
+    -> nvic@23
+
+nvicInput40: Miscellaneous.CombinedInput @ none
+    numberOfInputs: 6
+    -> nvic@40
+
+// SYSCFG_TypeDef ends at SKR (0x24); VREFBUF follows at 0x40010030
+syscfg: Miscellaneous.STM32_SYSCFG @ sysbus <0x40010000, +0x30>
+    [0-15] -> exti@[0-15]
+
+gpioPortA: GPIOPort.STM32_GPIOPort @ sysbus <0x48000000, +0x400>
+    modeResetValue: 0xABFFFFFF
+    outputSpeedResetValue: 0x0C000000
+    pullUpPullDownResetValue: 0x64000000
+    numberOfAFs: 16
+    [0-15] -> syscfg#0@[0-15]
+
+gpioPortB: GPIOPort.STM32_GPIOPort @ sysbus <0x48000400, +0x400>
+    modeResetValue: 0xFFFFFEBF
+    outputSpeedResetValue: 0x000000C0
+    pullUpPullDownResetValue: 0x00000100
+    numberOfAFs: 16
+    [0-15] -> syscfg#1@[0-15]
+
+gpioPortC: GPIOPort.STM32_GPIOPort @ sysbus <0x48000800, +0x400>
+    modeResetValue: 0xFFFFFFFF
+    numberOfAFs: 16
+    [0-15] -> syscfg#2@[0-15]
+
+gpioPortD: GPIOPort.STM32_GPIOPort @ sysbus <0x48000C00, +0x400>
+    modeResetValue: 0xFFFFFFFF
+    numberOfAFs: 16
+    [0-15] -> syscfg#3@[0-15]
+
+gpioPortE: GPIOPort.STM32_GPIOPort @ sysbus <0x48001000, +0x400>
+    modeResetValue: 0xFFFFFFFF
+    numberOfAFs: 16
+    [0-15] -> syscfg#4@[0-15]
+
+gpioPortF: GPIOPort.STM32_GPIOPort @ sysbus <0x48001400, +0x400>
+    modeResetValue: 0xFFFFFFFF
+    numberOfAFs: 16
+    [0-15] -> syscfg#5@[0-15]
+
+gpioPortG: GPIOPort.STM32_GPIOPort @ sysbus <0x48001800, +0x400>
+    modeResetValue: 0xFFFFFFFF
+    numberOfAFs: 16
+    [0-15] -> syscfg#6@[0-15]
+
+gpioPortH: GPIOPort.STM32_GPIOPort @ sysbus <0x48001C00, +0x400>
+    modeResetValue: 0xFFFFFFFF
+    numberOfAFs: 16
+    [0-15] -> syscfg#7@[0-15]
+
+gpioPortI: GPIOPort.STM32_GPIOPort @ sysbus <0x48002000, +0x400>
+    modeResetValue: 0xFFFFFFFF
+    numberOfAFs: 16
+    [0-15] -> syscfg#8@[0-15]
+
+usart1: UART.STM32F7_USART @ sysbus 0x40013800
+    frequency: 80000000
+    hasPrescaler: true
+    IRQ -> nvic@37
+
+usart2: UART.STM32F7_USART @ sysbus 0x40004400
+    frequency: 80000000
+    hasPrescaler: true
+    IRQ -> nvic@38
+
+usart3: UART.STM32F7_USART @ sysbus 0x40004800
+    frequency: 80000000
+    hasPrescaler: true
+    IRQ -> nvic@39
+
+uart4: UART.STM32F7_USART @ sysbus 0x40004C00
+    frequency: 80000000
+    hasPrescaler: true
+    IRQ -> nvic@52
+
+uart5: UART.STM32F7_USART @ sysbus 0x40005000
+    frequency: 80000000
+    hasPrescaler: true
+    IRQ -> nvic@53
+
+lpuart1: UART.STM32F7_USART @ sysbus 0x40008000
+    frequency: 80000000
+    hasPrescaler: true
+    lowPowerMode: true
+    IRQ -> nvic@70
+
+spi1: SPI.STM32SPI @ sysbus 0x40013000
+    series: STM32Series.L4
+    IRQ -> nvic@35
+
+spi2: SPI.STM32SPI @ sysbus 0x40003800
+    series: STM32Series.L4
+    IRQ -> nvic@36
+
+spi3: SPI.STM32SPI @ sysbus 0x40003C00
+    series: STM32Series.L4
+    IRQ -> nvic@51
+
+i2c1: I2C.STM32F7_I2C @ sysbus 0x40005400
+    EventInterrupt -> nvic@31
+    ErrorInterrupt -> nvic@32
+
+i2c2: I2C.STM32F7_I2C @ sysbus 0x40005800
+    EventInterrupt -> nvic@33
+    ErrorInterrupt -> nvic@34
+
+i2c3: I2C.STM32F7_I2C @ sysbus 0x40005C00
+    EventInterrupt -> nvic@72
+    ErrorInterrupt -> nvic@73
+
+i2c4: I2C.STM32F7_I2C @ sysbus 0x40008400
+    EventInterrupt -> nvic@84
+    ErrorInterrupt -> nvic@83
+
+// bxCAN; IRQ order TX, RX0, RX1, SCE
+can1: CAN.STMCAN @ sysbus <0x40006400, +0x400>
+    [0-3] -> nvic@[19-22]
+
+// 7 channels each; DMAMUX: 14 outputs, 4 request generators, 89 request inputs (RM0432 12.3.1)
+dma1: DMA.STM32G0DMA @ sysbus 0x40020000
+    numberOfChannels: 7
+    [0-6] -> nvic@[11-17]
+
+dma2: DMA.STM32G0DMA @ sysbus 0x40020400
+    numberOfChannels: 7
+    [0-4] -> nvic@[56-60]
+    [5-6] -> nvic@[68-69]
+
+dmamux1: Miscellaneous.STM32_DMAMUX @ sysbus 0x40020800
+    numberOfInputRequestChannels: 89
+    numberOfOutputRequestChannels: 14
+    numberOfRequestGeneratorChannels: 4
+    [0-6] -> dma1@[1-7]
+    [7-13] -> dma2@[1-7]
+
+rtc: Timers.STM32F4_RTC @ sysbus 0x40002800
+    backupRegisterCount: 32
+    hasL4TamperRegister: true
+    AlarmIRQ -> exti@18
+    WakeupIRQ -> exti@20
+
+// LSI ~32 kHz
+iwdg: Timers.STM32_IndependentWatchdog @ sysbus 0x40003000
+    frequency: 32000
+
+rng: Miscellaneous.STM32_RNG @ sysbus 0x50060800
+    series: STM32Series.L4
+    IRQ -> nvic@80
+
+crc: CRC.STM32_CRC @ sysbus 0x40023000
+    series: STM32Series.L4
+    configurablePoly: true
+
+adc1: Analog.STM32L4_ADC @ sysbus 0x50040000
+    referenceVoltage: 3.3
+    externalEventFrequency: 1000
+    IRQ -> nvic@18
+
+// SDMMC v2 with internal DMA; SDMMC_TypeDef matches the STM32H7 controller (stm32l4r5xx.h)
+sdmmc1: SD.STM32HSDMMC @ sysbus 0x50062400
+    IRQ -> nvic@49
+
+// Shared lines (stm32l4r5xx.h): TIM1_BRK_TIM15 = 24, TIM1_UP_TIM16 = 25, TIM1_TRG_COM_TIM17 = 26
+nvicInput24: Miscellaneous.CombinedInput @ none
+    numberOfInputs: 2
+    -> nvic@24
+
+nvicInput25: Miscellaneous.CombinedInput @ none
+    numberOfInputs: 2
+    -> nvic@25
+
+nvicInput26: Miscellaneous.CombinedInput @ none
+    numberOfInputs: 3
+    -> nvic@26
+
+// TIM8_TRG_COM = 45
+nvicInput45: Miscellaneous.CombinedInput @ none
+    numberOfInputs: 2
+    -> nvic@45
+
+timer1: Timers.STM32_Timer @ sysbus 0x40012C00
+    BreakInterrupt -> nvicInput24@0
+    UpdateInterrupt -> nvicInput25@0
+    [TriggerInterrupt, CommutationInterrupt] -> nvicInput26@[0, 1]
+    CaptureCompareInterrupt -> nvic@27
+    frequency: 80000000
+    initialLimit: 0xFFFF
+
+timer2: Timers.STM32_Timer @ sysbus 0x40000000
+    -> nvic@28
+    frequency: 80000000
+    initialLimit: 0xFFFFFFFF
+
+timer3: Timers.STM32_Timer @ sysbus 0x40000400
+    -> nvic@29
+    frequency: 80000000
+    initialLimit: 0xFFFF
+
+timer4: Timers.STM32_Timer @ sysbus 0x40000800
+    -> nvic@30
+    frequency: 80000000
+    initialLimit: 0xFFFF
+
+timer5: Timers.STM32_Timer @ sysbus 0x40000C00
+    -> nvic@50
+    frequency: 80000000
+    initialLimit: 0xFFFFFFFF
+
+timer6: Timers.STM32_Timer @ sysbus 0x40001000
+    -> nvic@54
+    frequency: 80000000
+    initialLimit: 0xFFFF
+
+timer7: Timers.STM32_Timer @ sysbus 0x40001400
+    -> nvic@55
+    frequency: 80000000
+    initialLimit: 0xFFFF
+
+timer8: Timers.STM32_Timer @ sysbus 0x40013400
+    BreakInterrupt -> nvic@43
+    UpdateInterrupt -> nvic@44
+    [TriggerInterrupt, CommutationInterrupt] -> nvicInput45@[0, 1]
+    CaptureCompareInterrupt -> nvic@46
+    frequency: 80000000
+    initialLimit: 0xFFFF
+
+timer15: Timers.STM32_Timer @ sysbus 0x40014000
+    -> nvicInput24@1
+    frequency: 80000000
+    initialLimit: 0xFFFF
+
+timer16: Timers.STM32_Timer @ sysbus 0x40014400
+    -> nvicInput25@1
+    frequency: 80000000
+    initialLimit: 0xFFFF
+
+timer17: Timers.STM32_Timer @ sysbus 0x40014800
+    -> nvicInput26@2
+    frequency: 80000000
+    initialLimit: 0xFFFF
+
+sysbus:
+    init add:
+        Tag <0x40006000 0x400> "CRS"
+        Tag <0x40007400 0x400> "DAC1"
+        Tag <0x40002C00 0x400> "WWDG"
+        Tag <0x40007C00 0x400> "LPTIM1"
+        Tag <0x40009400 0x400> "LPTIM2"
+        Tag <0x40010030 0x10> "VREFBUF"
+        Tag <0x40010200 0x8> "COMP"
+        Tag <0x50061C00 0x400> "OCTOSPIM"
+        Tag <0xE0042000 0x400> "DBGMCU"
+        Tag <0xE0001000 0x1000> "DWT"
