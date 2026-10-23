@@ -22,6 +22,7 @@
 - tests/peripherals/SDCard.robot
 - tests/peripherals/VEML7700.robot
 - tests/peripherals/STM32LTDC.robot
+- tests/peripherals/STM32F7_I2C.robot
 - tests/unit-tests/arm-semihosting.robot
 - tests/unit-tests/riscv-zcb-zcmp-zcmt-extensions.robot
 - tests/unit-tests/hst-delayed-cpu-registration.robot
