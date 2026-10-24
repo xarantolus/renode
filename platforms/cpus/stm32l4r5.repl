@@ -4,7 +4,11 @@
 // Bus clock-dependent models are configured for the 80 MHz tree (MSI 4 MHz -> PLL N40 R2);
 // override `frequency` per machine for a different SYSCLK.
 
-flash: Memory.MappedMemory @ sysbus 0x08000000
+// With BOOT0 low, main flash is also mapped at 0x0 (RM0432 2.6 Boot configuration)
+flash: Memory.MappedMemory @ {
+        sysbus 0x08000000;
+        sysbus 0x0
+    }
     size: 0x200000
 
 // SRAM1 192 KiB + SRAM2 64 KiB + SRAM3 384 KiB are contiguous at 0x20000000
