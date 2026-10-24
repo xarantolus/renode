@@ -33,6 +33,8 @@ nvic: IRQControllers.NVIC @ sysbus 0xE000E000
     priorityMask: 0xF0
     systickFrequency: 4000000
     IRQ -> cpu@0
+    // SYSRESETREQ goes through the RCC, which records it in RCC_CSR (SFTRSTF)
+    SystemResetRequest -> rcc@0
 
 cpu: CPU.CortexM @ sysbus
     cpuType: "cortex-m4f"
@@ -206,6 +208,7 @@ rtc: Timers.STM32F4_RTC @ sysbus 0x40002800
 // LSI ~32 kHz
 iwdg: Timers.STM32_IndependentWatchdog @ sysbus 0x40003000
     frequency: 32000
+    ResetRequest -> rcc@1
 
 rng: Miscellaneous.STM32_RNG @ sysbus 0x50060800
     series: STM32Series.L4
