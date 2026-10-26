@@ -6,6 +6,8 @@ cpu: CPU.CortexM @ sysbus
 nvic: IRQControllers.NVIC @ sysbus 0xE000E000
     priorityMask: 0xF0
     -> cpu@0
+    // SYSRESETREQ goes through the RCC, which records it in RCC_RSR (SFTRSTF)
+    SystemResetRequest -> rcc@0
 
 dwt: Miscellaneous.DWT @ sysbus 0xE0001000
     frequency: 250000000
@@ -559,8 +561,10 @@ lptimer5: Timers.STM32L0_LpTimer @ {
     frequency: 32000000
     -> exti@53
 
+// IWDG1, clocked by the 32 kHz LSI (DS12110 Rev 11, Table 39)
 watchdog: Timers.STM32_IndependentWatchdog @ sysbus 0x58004800
-    frequency: 56000
+    frequency: 32000
+    ResetRequest -> rcc@1
 
 hsem: Miscellaneous.STM32H7_HardwareSemaphore @ {
         sysbus 0x58026400;

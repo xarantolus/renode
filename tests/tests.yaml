@@ -24,6 +24,7 @@
 - tests/peripherals/STM32LTDC.robot
 - tests/peripherals/STM32F7_I2C.robot
 - tests/peripherals/STM32L4R5_Boot.robot
+- tests/peripherals/STM32H743_Boot.robot
 - tests/unit-tests/arm-semihosting.robot
 - tests/unit-tests/riscv-zcb-zcmp-zcmt-extensions.robot
 - tests/unit-tests/hst-delayed-cpu-registration.robot
